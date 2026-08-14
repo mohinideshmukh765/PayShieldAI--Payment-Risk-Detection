@@ -1,0 +1,29 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: payshield-postgres
+    environment:
+      POSTGRES_DB: PaySheildAIDB
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: mohini
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: payshield-mlflow
+    ports:
+      - "5000:5000"
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+
+volumes:
+  postgres_data:
