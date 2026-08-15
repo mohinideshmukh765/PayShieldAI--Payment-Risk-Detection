@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -29,12 +30,17 @@ public class TransactionController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<TransactionResponse>> createTransaction(
-            @RequestParam UUID userId,
-            @Valid @RequestBody CreateTransactionRequest request
+            @Valid @RequestBody CreateTransactionRequest request,
+            Authentication authentication
     ) {
 
+        String email = authentication.getName();
+
         TransactionResponse response =
-                transactionService.createTransaction(userId, request);
+                transactionService.createTransaction(
+                        email,
+                        request
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)

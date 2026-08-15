@@ -33,14 +33,14 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse createTransaction(
-            UUID userId,
+            String email,
             CreateTransactionRequest request
     ) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found: " + userId
+                                "User not found: " + email
                         )
                 );
 
