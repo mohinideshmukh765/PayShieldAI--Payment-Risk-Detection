@@ -3,33 +3,33 @@ from pydantic import BaseModel, Field
 
 class FraudPredictionRequest(BaseModel):
 
+    step: int = Field(..., ge=0)
+
+    transaction_type: str
+
     amount: float = Field(..., gt=0)
 
-    transactions_last_5_minutes: int = Field(
-        default=0,
-        ge=0
+    old_balance_origin: float = Field(
+        ..., ge=0
     )
 
-    transactions_last_1_hour: int = Field(
-        default=0,
-        ge=0
+    new_balance_origin: float = Field(
+        ..., ge=0
     )
 
-    average_transaction_amount: float = Field(
-        default=0,
-        ge=0
+    old_balance_destination: float = Field(
+        ..., ge=0
     )
 
-    recent_failed_attempts: int = Field(
-        default=0,
-        ge=0
+    new_balance_destination: float = Field(
+        ..., ge=0
     )
 
-    new_device: bool = False
-
-    location_changed: bool = False
-
-    destination_high_risk: bool = False
+    flagged_fraud: int = Field(
+        default=0,
+        ge=0,
+        le=1
+    )
 
 
 class FraudPredictionResponse(BaseModel):
