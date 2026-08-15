@@ -1,0 +1,67 @@
+package com.payshield.controller;
+
+import com.payshield.dto.fraud.FraudRuleEvaluationRequest;
+import com.payshield.dto.fraud.FraudRuleEvaluationResponse;
+import com.payshield.fraud.rule.FraudRuleEngine;
+import com.payshield.fraud.rule.FraudRuleContext;
+import com.payshield.fraud.rule.FraudRuleResult;
+import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.Instant;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/fraud/rules")
+public class FraudRuleController {
+
+    private final FraudRuleEngine fraudRuleEngine;
+
+    public FraudRuleController(
+            FraudRuleEngine fraudRuleEngine
+    ) {
+        this.fraudRuleEngine = fraudRuleEngine;
+    }
+
+    @PostMapping("/evaluate")
+    @PreAuthorize("hasAnyRole('ANALYST', 'ADMIN')")
+    public FraudRuleEvaluationResponse evaluate(
+            @Valid
+            @RequestBody
+            FraudRuleEvaluationRequest request
+    ) {
+
+        FraudRuleContext context =
+                new FraudRuleContext(
+                        request.userId(),
+                        request.transactionId(),
+                        request.amount(),
+                        Instant.now(),
+                        request.transactionsLast5Minutes(),
+                        request.transactionsLast1Hour(),
+                        request.averageTransactionAmount(),
+                        request.recentFailedAttempts(),
+                        request.newDevice(),
+                        request.locationChanged(),
+                        request.destinationHighRisk()
+                );
+
+        List<FraudRuleResult> results =
+                fraudRuleEngine.evaluate(context);
+
+        int totalRiskPoints =
+                fraudRuleEngine.calculateRiskPoints(results);
+
+        long triggeredRules =
+                results.stream()
+                        .filter(FraudRuleResult::triggered)
+                        .count();
+
+        return new FraudRuleEvaluationResponse(
+                results,
+                totalRiskPoints,
+                triggeredRules
+        );
+    }
+}

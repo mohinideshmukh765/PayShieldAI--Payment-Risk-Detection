@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+
+# Dataset
+data/raw/*
+data/processed/*
+
+# ML artifacts
+artifacts/*.joblib
+artifacts/*.pkl
+artifacts/*.pickle
+
+# Experiment outputs
+reports/figures/*
+reports/metrics/*

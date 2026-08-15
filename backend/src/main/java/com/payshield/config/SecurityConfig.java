@@ -1,5 +1,6 @@
 package com.payshield.config;
 
+import com.payshield.entity.enums.UserRole;
 import com.payshield.security.CustomUserDetailsService;
 import com.payshield.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -80,24 +81,30 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
+                        // Public endpoints
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/actuator/health",
                                 "/actuator/info"
                         ).permitAll()
 
+                        // ADMIN only
                         .requestMatchers(
                                 "/api/v1/admin/**"
-                        ).hasRole("ADMIN")
+                        ).hasRole(
+                                UserRole.ADMIN.name()
+                        )
 
+                        // ANALYST + ADMIN
                         .requestMatchers(
                                 "/api/v1/fraud/**",
                                 "/api/v1/analytics/**"
                         ).hasAnyRole(
-                                "FRAUD_ANALYST",
-                                "ADMIN"
+                                UserRole.ANALYST.name(),
+                                UserRole.ADMIN.name()
                         )
 
+                        // Everything else requires authentication
                         .anyRequest()
                         .authenticated()
                 )
