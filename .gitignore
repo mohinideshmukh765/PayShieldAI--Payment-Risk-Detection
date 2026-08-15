@@ -23,8 +23,8 @@ target/
 # Environment / Secrets
 # ==============================
 .env
-.env.*
-!.env.example
+
+
 
 # ==============================
 # Python
