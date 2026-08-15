@@ -84,3 +84,6 @@ docker-data/
 # ==============================
 *.tmp
 *.temp
+
+# Spring Boot
+backend/target/
