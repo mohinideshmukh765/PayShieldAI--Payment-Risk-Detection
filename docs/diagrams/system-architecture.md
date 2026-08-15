@@ -1,24 +1,16 @@
-# System Architecture
-
 ```mermaid
-flowchart TD
+sequenceDiagram
+    participant Client
+    participant API as Spring Boot API
+    participant Service as Transaction Service
+    participant DB as PostgreSQL
 
-    USER[User] --> FRONTEND[React Frontend]
-
-    FRONTEND --> BACKEND[Spring Boot API]
-
-    BACKEND --> AUTH[Spring Security + JWT]
-
-    BACKEND --> DB[(PostgreSQL)]
-
-    BACKEND --> ML[Python ML API]
-
-    ML --> XGB[XGBoost]
-    ML --> IF[Isolation Forest]
-
-    XGB --> MLFLOW[MLflow]
-    IF --> MLFLOW
-
-    MLFLOW --> S3[AWS S3]
-
-    DB --> RDS[AWS RDS]
+    Client->>API: POST /transactions
+    API->>API: Validate request
+    API->>Service: Create transaction
+    Service->>DB: Find user
+    DB-->>Service: User
+    Service->>DB: Save transaction
+    DB-->>Service: Transaction
+    Service-->>API: TransactionResponse
+    API-->>Client: 201 Created

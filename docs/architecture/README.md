@@ -13,7 +13,6 @@ The primary objective is to demonstrate:
 - MLflow / MLOps
 - PostgreSQL
 - AWS
-- Docker
 - Secure API development
 
 Spring Boot owns the core business domain and transaction lifecycle.
