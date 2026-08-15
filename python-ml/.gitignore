@@ -20,3 +20,11 @@ artifacts/*.pickle
 # Experiment outputs
 reports/figures/*
 reports/metrics/*
+
+# MLflow
+mlruns/
+mlflow.db
+mlartifacts/
+
+# MLflow local artifacts
+*.db

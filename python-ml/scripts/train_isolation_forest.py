@@ -7,6 +7,15 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import IsolationForest
 
+import mlflow
+import mlflow.sklearn
+
+from app.mlflow_config import configure_mlflow
+
+
+# ============================================================
+# Paths
+# ============================================================
 
 DATA_PATH = Path(
     "data/processed/paysim_features.csv"
@@ -16,6 +25,10 @@ MODEL_PATH = Path(
     "artifacts/isolation_forest_model.joblib"
 )
 
+
+# ============================================================
+# Features
+# ============================================================
 
 FEATURES = [
     "step",
@@ -35,9 +48,28 @@ FEATURES = [
 ]
 
 
+# ============================================================
+# Main Training Pipeline
+# ============================================================
+
 def main():
 
+    # --------------------------------------------------------
+    # 1. Load Dataset
+    # --------------------------------------------------------
+
+    print("Loading processed dataset...")
+
     df = pd.read_csv(DATA_PATH)
+
+    print(
+        f"Dataset shape: {df.shape}"
+    )
+
+
+    # --------------------------------------------------------
+    # 2. Time-Based Training Split
+    # --------------------------------------------------------
 
     split_step = df["step"].quantile(0.80)
 
@@ -45,20 +77,63 @@ def main():
         df["step"] <= split_step
     ]
 
-    # Train anomaly detector on legitimate transactions
+
+    # --------------------------------------------------------
+    # 3. Keep Only Legitimate Transactions
+    # --------------------------------------------------------
+    #
+    # Isolation Forest is being used as an unsupervised
+    # anomaly detector, so we train it primarily on
+    # legitimate transactions.
+    #
+
     normal_df = train_df[
         train_df["isFraud"] == 0
     ]
 
-    # Keep training practical on a local machine
+    print(
+        f"Legitimate training rows: "
+        f"{len(normal_df):,}"
+    )
+
+
+    # --------------------------------------------------------
+    # 4. Limit Training Size
+    # --------------------------------------------------------
+    #
+    # Keeps local training practical while retaining a
+    # representative sample.
+    #
+
+    sample_size = min(
+        300_000,
+        len(normal_df)
+    )
+
     normal_df = normal_df.sample(
-        n=min(300_000, len(normal_df)),
+        n=sample_size,
         random_state=42
     )
 
+    print(
+        f"Sampled rows: {len(normal_df):,}"
+    )
+
+
+    # --------------------------------------------------------
+    # 5. Select Features
+    # --------------------------------------------------------
+
     X_train = normal_df[FEATURES]
 
-    categorical_features = ["type"]
+
+    # --------------------------------------------------------
+    # 6. Feature Preprocessing
+    # --------------------------------------------------------
+
+    categorical_features = [
+        "type"
+    ]
 
     numerical_features = [
         feature
@@ -83,9 +158,25 @@ def main():
         ]
     )
 
-    X_processed = preprocessor.fit_transform(
-        X_train
+
+    # --------------------------------------------------------
+    # 7. Transform Features
+    # --------------------------------------------------------
+
+    print(
+        "Preprocessing features..."
     )
+
+    X_processed = (
+        preprocessor.fit_transform(
+            X_train
+        )
+    )
+
+
+    # --------------------------------------------------------
+    # 8. Create Isolation Forest
+    # --------------------------------------------------------
 
     model = IsolationForest(
         n_estimators=200,
@@ -94,26 +185,108 @@ def main():
         n_jobs=-1
     )
 
-    model.fit(X_processed)
 
-    MODEL_PATH.parent.mkdir(
-        parents=True,
-        exist_ok=True
-    )
+    # --------------------------------------------------------
+    # 9. Configure MLflow
+    # --------------------------------------------------------
 
-    joblib.dump(
-        {
-            "model": model,
-            "preprocessor": preprocessor,
-            "features": FEATURES
-        },
-        MODEL_PATH
-    )
+    configure_mlflow()
 
-    print(
-        f"Isolation Forest saved to {MODEL_PATH}"
-    )
 
+    # --------------------------------------------------------
+    # 10. Start MLflow Run
+    # --------------------------------------------------------
+
+    with mlflow.start_run(
+        run_name="isolation-forest-paysim"
+    ):
+
+        mlflow.set_tags({
+            "model_type": "Isolation Forest",
+            "dataset": "PaySim",
+            "task": "anomaly_detection"
+        })
+
+
+        # ----------------------------------------------------
+        # Log Parameters
+        # ----------------------------------------------------
+
+        mlflow.log_params({
+            "n_estimators": 200,
+            "contamination": "auto",
+            "random_state": 42,
+            "training_samples": len(X_train)
+        })
+
+
+        # ----------------------------------------------------
+        # 11. Train Model
+        # ----------------------------------------------------
+
+        print(
+            "\nTraining Isolation Forest..."
+        )
+
+        model.fit(
+            X_processed
+        )
+
+
+        # ----------------------------------------------------
+        # 12. Save Model Artifact
+        # ----------------------------------------------------
+
+        MODEL_PATH.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        joblib.dump(
+            {
+                "model": model,
+                "preprocessor": preprocessor,
+                "features": FEATURES
+            },
+            MODEL_PATH
+        )
+
+
+        # ----------------------------------------------------
+        # 13. Log Model to MLflow
+        # ----------------------------------------------------
+
+        mlflow.sklearn.log_model(
+            model,
+            name="isolation_forest_model"
+        )
+
+
+        # ----------------------------------------------------
+        # 14. Log Local Artifact
+        # ----------------------------------------------------
+
+        mlflow.log_artifact(
+            str(MODEL_PATH)
+        )
+
+
+        # ----------------------------------------------------
+        # 15. Print Result
+        # ----------------------------------------------------
+
+        print(
+            "\nIsolation Forest training completed."
+        )
+
+        print(
+            f"Model saved to: {MODEL_PATH}"
+        )
+
+
+# ============================================================
+# Entry Point
+# ============================================================
 
 if __name__ == "__main__":
     main()
