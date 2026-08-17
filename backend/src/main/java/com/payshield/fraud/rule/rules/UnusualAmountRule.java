@@ -3,7 +3,7 @@ package com.payshield.fraud.rule.rules;
 import com.payshield.fraud.config.FraudRuleProperties;
 import com.payshield.fraud.rule.FraudRule;
 import com.payshield.fraud.rule.FraudRuleContext;
-import com.payshield.fraud.rule.FraudRuleResult;
+import com.payshield.fraud.rule.FraudRuleEvaluation;
 import com.payshield.fraud.rule.FraudRuleType;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +26,7 @@ public class UnusualAmountRule implements FraudRule {
     }
 
     @Override
-    public FraudRuleResult evaluate(
+    public FraudRuleEvaluation evaluate(
             FraudRuleContext context
     ) {
 
@@ -36,7 +36,7 @@ public class UnusualAmountRule implements FraudRule {
         if (average == null ||
                 average.compareTo(BigDecimal.ZERO) <= 0) {
 
-            return new FraudRuleResult(
+            return new FraudRuleEvaluation(
                     getType(),
                     false,
                     0,
@@ -55,7 +55,7 @@ public class UnusualAmountRule implements FraudRule {
                 context.amount()
                         .compareTo(threshold) > 0;
 
-        return new FraudRuleResult(
+        return new FraudRuleEvaluation(
                 getType(),
                 triggered,
                 triggered

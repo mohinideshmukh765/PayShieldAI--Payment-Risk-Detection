@@ -18,6 +18,7 @@ public record TransactionResponse(
         String destinationAccount,
         Instant transactionTime,
         TransactionStatus status,
+        BigDecimal userWalletBalance,
         Instant createdAt
 ) {
 }

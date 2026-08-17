@@ -10,6 +10,7 @@ import java.util.UUID;
 public record TransactionSummaryResponse(
         UUID id,
         String transactionReference,
+        UUID userId,
         TransactionType transactionType,
         BigDecimal amount,
         String currency,

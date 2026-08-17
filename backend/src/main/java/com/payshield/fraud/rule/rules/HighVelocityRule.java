@@ -3,7 +3,7 @@ package com.payshield.fraud.rule.rules;
 import com.payshield.fraud.config.FraudRuleProperties;
 import com.payshield.fraud.rule.FraudRule;
 import com.payshield.fraud.rule.FraudRuleContext;
-import com.payshield.fraud.rule.FraudRuleResult;
+import com.payshield.fraud.rule.FraudRuleEvaluation;
 import com.payshield.fraud.rule.FraudRuleType;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +26,7 @@ public class HighVelocityRule implements FraudRule {
     }
 
     @Override
-    public FraudRuleResult evaluate(
+    public FraudRuleEvaluation evaluate(
             FraudRuleContext context
     ) {
 
@@ -45,7 +45,7 @@ public class HighVelocityRule implements FraudRule {
                         context.transactionsLast1Hour()
                 );
 
-        return new FraudRuleResult(
+        return new FraudRuleEvaluation(
                 getType(),
                 triggered,
                 triggered

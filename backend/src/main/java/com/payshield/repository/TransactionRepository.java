@@ -6,7 +6,10 @@ import com.payshield.entity.enums.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 public interface TransactionRepository
@@ -29,4 +32,29 @@ public interface TransactionRepository
             TransactionType transactionType,
             Pageable pageable
     );
-}
+
+
+
+
+        @Query("""
+        SELECT COUNT(t) FROM Transaction t
+        WHERE t.user.id = :userId
+        AND t.transactionTime >= :since
+    """)
+        long countByUserIdSince(UUID userId, Instant since);
+
+        @Query("""
+        SELECT AVG(t.amount) FROM Transaction t
+        WHERE t.user.id = :userId
+        AND t.status = com.payshield.entity.enums.TransactionStatus.COMPLETED
+    """)
+        BigDecimal findAverageAmountByUserId(UUID userId);
+
+        @Query("""
+        SELECT COUNT(t) FROM Transaction t
+        WHERE t.user.id = :userId
+        AND t.status = com.payshield.entity.enums.TransactionStatus.BLOCKED
+        AND t.transactionTime >= :since
+    """)
+        long countRecentFailedAttempts(UUID userId, Instant since);
+    }

@@ -1,30 +1,85 @@
-# Python
+# ==============================
+# Python Environment
+# ==============================
 .venv/
+venv/
+env/
+.Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 .pytest_cache/
+.mypy_cache/
 
-# Environment
+# ==============================
+# Environment / Secrets
+# ==============================
 .env
 .env.*
+!.env.example
 
-# Dataset
-data/raw/*
-data/processed/*
-
-# ML artifacts
+# ==============================
+# ML Model Artifacts
+# (trained model bundles — reproduced from training scripts)
+# ==============================
 artifacts/*.joblib
 artifacts/*.pkl
 artifacts/*.pickle
+artifacts/*.model
+artifacts/*.onnx
+artifacts/*.h5
 
-# Experiment outputs
-reports/figures/*
-reports/metrics/*
+# ==============================
+# Dataset / Data Files
+# (PaySim CSV — too large for git)
+# ==============================
+data/
+*.csv
+*.parquet
+*.feather
+*.json.gz
 
-# MLflow
+# ==============================
+# MLflow Tracking
+# ==============================
 mlruns/
-mlflow.db
 mlartifacts/
-
-# MLflow local artifacts
+mlflow.db
 *.db
+
+# ==============================
+# Reports & Figures
+# (generated outputs — reproduced from evaluation scripts)
+# ==============================
+reports/figures/
+reports/metrics/
+reports/*.png
+reports/*.pdf
+
+# ==============================
+# Jupyter
+# ==============================
+.ipynb_checkpoints/
+*.ipynb
+
+# ==============================
+# Logs
+# ==============================
+*.log
+logs/
+
+# ==============================
+# OS Files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# Temporary Files
+# ==============================
+*.tmp
+*.temp
+*.swp
+*~

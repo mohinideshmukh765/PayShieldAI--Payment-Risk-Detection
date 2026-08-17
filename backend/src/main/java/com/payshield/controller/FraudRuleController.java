@@ -4,7 +4,7 @@ import com.payshield.dto.fraud.FraudRuleEvaluationRequest;
 import com.payshield.dto.fraud.FraudRuleEvaluationResponse;
 import com.payshield.fraud.rule.FraudRuleEngine;
 import com.payshield.fraud.rule.FraudRuleContext;
-import com.payshield.fraud.rule.FraudRuleResult;
+import com.payshield.fraud.rule.FraudRuleEvaluation;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +25,7 @@ public class FraudRuleController {
     }
 
     @PostMapping("/evaluate")
-    @PreAuthorize("hasAnyRole('ANALYST', 'ADMIN')")
+    @PreAuthorize("hasRole('ANALYST')")
     public FraudRuleEvaluationResponse evaluate(
             @Valid
             @RequestBody
@@ -47,7 +47,7 @@ public class FraudRuleController {
                         request.destinationHighRisk()
                 );
 
-        List<FraudRuleResult> results =
+        List<FraudRuleEvaluation> results =
                 fraudRuleEngine.evaluate(context);
 
         int totalRiskPoints =
@@ -55,7 +55,7 @@ public class FraudRuleController {
 
         long triggeredRules =
                 results.stream()
-                        .filter(FraudRuleResult::triggered)
+                        .filter(FraudRuleEvaluation::triggered)
                         .count();
 
         return new FraudRuleEvaluationResponse(

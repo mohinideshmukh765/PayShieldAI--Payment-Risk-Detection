@@ -15,7 +15,7 @@ public class FraudRuleEngine {
         this.rules = rules;
     }
 
-    public List<FraudRuleResult> evaluate(
+    public List<FraudRuleEvaluation> evaluate(
             FraudRuleContext context
     ) {
 
@@ -25,12 +25,12 @@ public class FraudRuleEngine {
     }
 
     public int calculateRiskPoints(
-            List<FraudRuleResult> results
+            List<FraudRuleEvaluation> results
     ) {
 
         return results.stream()
-                .filter(FraudRuleResult::triggered)
-                .mapToInt(FraudRuleResult::riskPoints)
+                .filter(FraudRuleEvaluation::triggered)
+                .mapToInt(FraudRuleEvaluation::riskPoints)
                 .sum();
     }
 }

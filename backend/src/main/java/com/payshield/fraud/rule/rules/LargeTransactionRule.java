@@ -3,7 +3,7 @@ package com.payshield.fraud.rule.rules;
 import com.payshield.fraud.config.FraudRuleProperties;
 import com.payshield.fraud.rule.FraudRule;
 import com.payshield.fraud.rule.FraudRuleContext;
-import com.payshield.fraud.rule.FraudRuleResult;
+import com.payshield.fraud.rule.FraudRuleEvaluation;
 import com.payshield.fraud.rule.FraudRuleType;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +24,7 @@ public class LargeTransactionRule implements FraudRule {
     }
 
     @Override
-    public FraudRuleResult evaluate(
+    public FraudRuleEvaluation evaluate(
             FraudRuleContext context
     ) {
 
@@ -35,7 +35,7 @@ public class LargeTransactionRule implements FraudRule {
                                         .getLargeTransactionThreshold()
                         ) > 0;
 
-        return new FraudRuleResult(
+        return new FraudRuleEvaluation(
                 getType(),
                 triggered,
                 triggered

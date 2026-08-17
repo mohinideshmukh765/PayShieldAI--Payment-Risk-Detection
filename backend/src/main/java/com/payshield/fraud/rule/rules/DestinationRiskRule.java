@@ -3,7 +3,7 @@ package com.payshield.fraud.rule.rules;
 import com.payshield.fraud.config.FraudRuleProperties;
 import com.payshield.fraud.rule.FraudRule;
 import com.payshield.fraud.rule.FraudRuleContext;
-import com.payshield.fraud.rule.FraudRuleResult;
+import com.payshield.fraud.rule.FraudRuleEvaluation;
 import com.payshield.fraud.rule.FraudRuleType;
 import org.springframework.stereotype.Component;
 
@@ -26,14 +26,14 @@ public class DestinationRiskRule implements FraudRule {
     }
 
     @Override
-    public FraudRuleResult evaluate(
+    public FraudRuleEvaluation evaluate(
             FraudRuleContext context
     ) {
 
         boolean triggered =
                 context.destinationHighRisk();
 
-        return new FraudRuleResult(
+        return new FraudRuleEvaluation(
                 getType(),
                 triggered,
                 triggered

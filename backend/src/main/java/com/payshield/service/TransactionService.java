@@ -7,7 +7,10 @@ import com.payshield.entity.Transaction;
 import com.payshield.entity.User;
 import com.payshield.entity.enums.TransactionStatus;
 import com.payshield.entity.enums.TransactionType;
+import com.payshield.entity.Payment;
+import com.payshield.entity.Wallet;
 import com.payshield.exception.ResourceNotFoundException;
+import com.payshield.repository.PaymentRepository;
 import com.payshield.repository.TransactionRepository;
 import com.payshield.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -22,13 +26,19 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final PaymentRepository paymentRepository;
+    private final WalletService walletService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            PaymentRepository paymentRepository,
+            WalletService walletService
     ) {
         this.transactionRepository = transactionRepository;
         this.userRepository = userRepository;
+        this.paymentRepository = paymentRepository;
+        this.walletService = walletService;
     }
 
     @Transactional
@@ -103,6 +113,77 @@ public class TransactionService {
         return transactions.map(this::mapToSummaryResponse);
     }
 
+    @Transactional
+    public TransactionResponse updateTransactionStatus(
+            UUID transactionId,
+            TransactionStatus status
+    ) {
+
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Transaction not found: " + transactionId
+                        )
+                );
+
+        if (transaction.getStatus() != TransactionStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Transaction is already " + transaction.getStatus() + " and cannot be modified."
+            );
+        }
+
+        // Sync with Payment entity if associated payment exists
+        var paymentOpt = paymentRepository.findByTransactionId(transaction.getTransactionReference());
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
+            if (status == TransactionStatus.COMPLETED) {
+                // Analyst approved — check user wallet balance before approving
+                Wallet wallet = walletService.getUserWallet(payment.getUser().getId());
+                if (wallet.getBalance().compareTo(payment.getAmount()) < 0) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Cannot approve payment: User wallet balance (₹%.2f) is insufficient for transaction amount (₹%.2f).",
+                                    wallet.getBalance(), payment.getAmount()
+                            )
+                    );
+                }
+
+                if (payment.getStatus() == com.payshield.entity.enums.PaymentStatus.REVIEW) {
+                    payment.setStatus(com.payshield.entity.enums.PaymentStatus.APPROVED);
+                    paymentRepository.save(payment);
+                    // Execute wallet debit upon analyst approval
+                    walletService.debit(
+                            payment.getUser().getId(),
+                            payment.getAmount(),
+                            transaction.getTransactionReference(),
+                            payment
+                    );
+                }
+            } else if (status == TransactionStatus.BLOCKED) {
+                payment.setStatus(com.payshield.entity.enums.PaymentStatus.REJECTED);
+                paymentRepository.save(payment);
+            }
+        } else {
+            // Standalone transaction without Payment record
+            if (status == TransactionStatus.COMPLETED && transaction.getUser() != null) {
+                Wallet wallet = walletService.getUserWallet(transaction.getUser().getId());
+                if (wallet.getBalance().compareTo(transaction.getAmount()) < 0) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Cannot approve transaction: User wallet balance (₹%.2f) is insufficient for transaction amount (₹%.2f).",
+                                    wallet.getBalance(), transaction.getAmount()
+                            )
+                    );
+                }
+            }
+        }
+
+        transaction.setStatus(status);
+        Transaction saved = transactionRepository.save(transaction);
+
+        return mapToResponse(saved);
+    }
+
     private String generateTransactionReference() {
         return "TXN-" +
                 UUID.randomUUID()
@@ -113,6 +194,13 @@ public class TransactionService {
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {
+        BigDecimal userWalletBalance = null;
+        try {
+            if (transaction.getUser() != null) {
+                userWalletBalance = walletService.getUserWallet(transaction.getUser().getId()).getBalance();
+            }
+        } catch (Exception ignored) {
+        }
 
         return new TransactionResponse(
                 transaction.getId(),
@@ -125,6 +213,7 @@ public class TransactionService {
                 transaction.getDestinationAccount(),
                 transaction.getTransactionTime(),
                 transaction.getStatus(),
+                userWalletBalance,
                 transaction.getCreatedAt()
         );
     }
@@ -136,6 +225,7 @@ public class TransactionService {
         return new TransactionSummaryResponse(
                 transaction.getId(),
                 transaction.getTransactionReference(),
+                transaction.getUser() != null ? transaction.getUser().getId() : null,
                 transaction.getTransactionType(),
                 transaction.getAmount(),
                 transaction.getCurrency(),

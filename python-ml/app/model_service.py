@@ -1,5 +1,4 @@
 import joblib
-import numpy as np
 import pandas as pd
 
 from app.config import (
@@ -14,6 +13,10 @@ class ModelService:
 
         self.xgboost_bundle = None
         self.isolation_bundle = None
+
+    # =========================================================
+    # Load Models
+    # =========================================================
 
     def load_models(self):
 
@@ -30,91 +33,196 @@ class ModelService:
             "isolation_forest": True
         }
 
+    # =========================================================
+    # Build Features
+    # =========================================================
+
     def build_features(self, request):
 
         hour = request.step % 24
+
         day = request.step // 24
 
         origin_balance_error = (
-            request.old_balance_origin
+            request.oldbalanceOrg
             - request.amount
-            - request.new_balance_origin
+            - request.newbalanceOrig
         )
 
         destination_balance_error = (
-            request.old_balance_destination
+            request.oldbalanceDest
             + request.amount
-            - request.new_balance_destination
+            - request.newbalanceDest
         )
 
         amount_to_origin_balance = (
             request.amount
-            / (request.old_balance_origin + 1)
+            / (request.oldbalanceOrg + 1)
         )
 
         amount_to_destination_balance = (
             request.amount
-            / (request.old_balance_destination + 1)
+            / (request.oldbalanceDest + 1)
         )
 
         return pd.DataFrame([{
+
             "step": request.step,
-            "type": request.transaction_type,
+
+            "type": request.type,
+
             "amount": request.amount,
-            "oldbalanceOrg": request.old_balance_origin,
-            "newbalanceOrig": request.new_balance_origin,
-            "oldbalanceDest": request.old_balance_destination,
-            "newbalanceDest": request.new_balance_destination,
-            "isFlaggedFraud": request.flagged_fraud,
+
+            "oldbalanceOrg": request.oldbalanceOrg,
+
+            "newbalanceOrig": request.newbalanceOrig,
+
+            "oldbalanceDest": request.oldbalanceDest,
+
+            "newbalanceDest": request.newbalanceDest,
+
+            "isFlaggedFraud": request.isFlaggedFraud,
+
             "hour": hour,
+
             "day": day,
-            "origin_balance_error": origin_balance_error,
-            "destination_balance_error": destination_balance_error,
-            "amount_to_origin_balance": amount_to_origin_balance,
-            "amount_to_destination_balance": amount_to_destination_balance
+
+            "origin_balance_error":
+                origin_balance_error,
+
+            "destination_balance_error":
+                destination_balance_error,
+
+            "amount_to_origin_balance":
+                amount_to_origin_balance,
+
+            "amount_to_destination_balance":
+                amount_to_destination_balance
         }])
+
+    # =========================================================
+    # Normalize Isolation Forest Score
+    # =========================================================
+
+    def normalize_anomaly_score(self, raw_score):
+
+        # Isolation Forest decision_function:
+        #
+        # positive -> more normal
+        # negative -> more anomalous
+        #
+        # Convert approximately to 0-100 risk representation.
+
+        score = 50 - (raw_score * 50)
+
+        return max(
+            0.0,
+            min(100.0, score)
+        )
+
+    # =========================================================
+    # Prediction
+    # =========================================================
 
     def predict(self, request):
 
+        if (
+            self.xgboost_bundle is None
+            or self.isolation_bundle is None
+        ):
+            raise RuntimeError(
+                "ML models are not loaded."
+            )
+
+        # -----------------------------------------------------
+        # Build raw PaySim feature DataFrame
+        # -----------------------------------------------------
+
         features = self.build_features(request)
 
+        # =====================================================
         # XGBoost
-        xgb_bundle = self.xgboost_bundle
+        # =====================================================
 
-        xgb_features = xgb_bundle[
-            "preprocessor"
-        ].transform(features)
+        xgb_preprocessor = (
+            self.xgboost_bundle["preprocessor"]
+        )
 
-        fraud_probability = (
-            xgb_bundle["model"]
+        xgb_model = (
+            self.xgboost_bundle["model"]
+        )
+
+        xgb_features = (
+            xgb_preprocessor.transform(features)
+        )
+
+        xgb_probability = (
+            xgb_model
             .predict_proba(xgb_features)[0][1]
         )
 
-        # Isolation Forest
-        iso_bundle = self.isolation_bundle
+        xgb_prediction = int(
+            xgb_probability >= 0.5
+        )
 
-        iso_features = iso_bundle[
-            "preprocessor"
-        ].transform(features)
+        # =====================================================
+        # Isolation Forest
+        # =====================================================
+
+        isolation_preprocessor = (
+            self.isolation_bundle["preprocessor"]
+        )
+
+        isolation_model = (
+            self.isolation_bundle["model"]
+        )
+
+        isolation_features = (
+            isolation_preprocessor.transform(features)
+        )
+
+        raw_score = (
+            isolation_model
+            .decision_function(
+                isolation_features
+            )[0]
+        )
 
         isolation_prediction = (
-            iso_bundle["model"]
-            .predict(iso_features)[0]
+            isolation_model
+            .predict(
+                isolation_features
+            )[0]
+        )
+
+        isolation_anomaly = (
+            isolation_prediction == -1
         )
 
         isolation_score = (
-            iso_bundle["model"]
-            .decision_function(iso_features)[0]
+            self.normalize_anomaly_score(
+                raw_score
+            )
         )
 
+        # =====================================================
+        # Final Response
+        # =====================================================
+
         return {
-            "xgboost_probability": float(
-                fraud_probability
-            ),
-            "isolation_forest_score": float(
-                isolation_score
-            ),
-            "anomaly_detected": (
-                isolation_prediction == -1
-            )
+
+            "xgboostProbability":
+                float(xgb_probability),
+
+            "xgboostPrediction":
+                xgb_prediction,
+
+            "isolationForestScore":
+                float(isolation_score),
+
+            "isolationForestAnomaly":
+                bool(isolation_anomaly),
+
+            "modelVersion":
+                "xgboost-v1-isolation-v1"
         }

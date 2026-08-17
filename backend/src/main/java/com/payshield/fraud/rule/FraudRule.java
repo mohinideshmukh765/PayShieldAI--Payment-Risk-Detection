@@ -4,5 +4,5 @@ public interface FraudRule {
 
     FraudRuleType getType();
 
-    FraudRuleResult evaluate(FraudRuleContext context);
+    FraudRuleEvaluation evaluate(FraudRuleContext context);
 }

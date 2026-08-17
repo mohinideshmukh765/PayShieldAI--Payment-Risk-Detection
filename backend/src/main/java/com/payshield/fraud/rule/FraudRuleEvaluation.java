@@ -2,7 +2,7 @@ package com.payshield.fraud.rule;
 
 import java.math.BigDecimal;
 
-public record FraudRuleResult(
+public record FraudRuleEvaluation(
 
         FraudRuleType ruleType,
 

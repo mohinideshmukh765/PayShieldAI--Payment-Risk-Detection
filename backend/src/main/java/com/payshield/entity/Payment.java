@@ -74,7 +74,7 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
-    private PaymentStatus status = PaymentStatus.INITIATED;
+    private PaymentStatus status = PaymentStatus.REVIEW;
 
     @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
@@ -109,7 +109,7 @@ public class Payment {
         }
 
         if (status == null) {
-            status = PaymentStatus.INITIATED;
+            status = PaymentStatus.REVIEW;
         }
     }
 

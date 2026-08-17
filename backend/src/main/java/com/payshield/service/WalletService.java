@@ -2,6 +2,7 @@ package com.payshield.service;
 
 import com.payshield.dto.wallet.WalletResponse;
 import com.payshield.dto.wallet.WalletTransactionResponse;
+import com.payshield.entity.Payment;
 import com.payshield.entity.User;
 import com.payshield.entity.Wallet;
 import com.payshield.entity.WalletTransaction;
@@ -9,7 +10,6 @@ import com.payshield.entity.enums.WalletStatus;
 import com.payshield.entity.enums.WalletTransactionType;
 import com.payshield.repository.WalletRepository;
 import com.payshield.repository.WalletTransactionRepository;
-import jakarta.persistence.OptimisticLockException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +33,10 @@ public class WalletService {
                 walletTransactionRepository;
     }
 
+    /** Starting balance given to every new wallet — enough for demo payments. */
+    private static final BigDecimal DEFAULT_STARTING_BALANCE =
+            new BigDecimal("10000.00");
+
     @Transactional
     public Wallet createWallet(User user) {
 
@@ -44,13 +48,27 @@ public class WalletService {
 
         Wallet wallet = Wallet.builder()
                 .user(user)
-                .balance(BigDecimal.ZERO)
+                .balance(DEFAULT_STARTING_BALANCE)
                 .currency("INR")
                 .status(WalletStatus.ACTIVE)
                 .version(0L)
                 .build();
 
         return walletRepository.save(wallet);
+    }
+
+    /**
+     * Top-up: credit an arbitrary amount to the user's wallet.
+     * This is the programmatic equivalent of the user depositing cash.
+     *
+     * @param userId  owner of the wallet
+     * @param amount  positive amount to add
+     */
+    @Transactional
+    public WalletResponse topUp(UUID userId, BigDecimal amount) {
+        credit(userId, amount, "TOPUP-" + java.util.UUID.randomUUID()
+                .toString().replace("-", "").substring(0, 12).toUpperCase());
+        return getWallet(userId);
     }
 
     @Transactional(readOnly = true)
@@ -111,7 +129,8 @@ public class WalletService {
     public void debit(
             UUID userId,
             BigDecimal amount,
-            String reference
+            String reference,
+            Payment payment
     ) {
 
         validateAmount(amount);
@@ -127,7 +146,9 @@ public class WalletService {
         }
 
         BigDecimal before = wallet.getBalance();
-        BigDecimal after = before.subtract(amount);
+
+        BigDecimal after =
+                before.subtract(amount);
 
         wallet.setBalance(after);
 
@@ -136,6 +157,7 @@ public class WalletService {
         WalletTransaction ledgerEntry =
                 WalletTransaction.builder()
                         .wallet(wallet)
+                        .payment(payment)
                         .type(WalletTransactionType.DEBIT)
                         .amount(amount)
                         .balanceBefore(before)
@@ -143,9 +165,10 @@ public class WalletService {
                         .reference(reference)
                         .build();
 
-        walletTransactionRepository.save(ledgerEntry);
+        walletTransactionRepository.save(
+                ledgerEntry
+        );
     }
-
     public Wallet getUserWallet(UUID userId) {
 
         return walletRepository

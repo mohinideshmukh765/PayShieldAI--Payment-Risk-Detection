@@ -88,20 +88,12 @@ public class SecurityConfig {
                                 "/actuator/info"
                         ).permitAll()
 
-                        // ADMIN only
-                        .requestMatchers(
-                                "/api/v1/admin/**"
-                        ).hasRole(
-                                UserRole.ADMIN.name()
-                        )
-
-                        // ANALYST + ADMIN
+                        // ANALYST only
                         .requestMatchers(
                                 "/api/v1/fraud/**",
                                 "/api/v1/analytics/**"
-                        ).hasAnyRole(
-                                UserRole.ANALYST.name(),
-                                UserRole.ADMIN.name()
+                        ).hasRole(
+                                UserRole.ANALYST.name()
                         )
 
                         // Everything else requires authentication

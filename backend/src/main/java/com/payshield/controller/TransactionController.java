@@ -119,4 +119,25 @@ public class TransactionController {
                 )
         );
     }
+
+    @PutMapping("/{transactionId}/status")
+    public ResponseEntity<ApiResponse<TransactionResponse>> updateTransactionStatus(
+            @PathVariable UUID transactionId,
+            @RequestParam TransactionStatus status
+    ) {
+
+        TransactionResponse response =
+                transactionService.updateTransactionStatus(
+                        transactionId,
+                        status
+                );
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Transaction status updated to " + status,
+                        response
+                )
+        );
+    }
 }
